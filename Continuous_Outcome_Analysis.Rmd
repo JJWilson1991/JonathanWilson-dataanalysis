@@ -40,8 +40,9 @@ We will be exploring and fitting a dataset of norovirus outbreaks. You can look 
 ```{r loaddata}
 #Write code that loads the dataset and does a quick check to make sure the data loaded ok (using e.g. `str` and `summary` or similar such functions).
 
-#data_raw <- (FILL HERE)
+norodata_raw <- read.csv("./norodata.csv")
 
+glimpse(norodata_raw)
 ```
 
 
@@ -54,7 +55,9 @@ Let's assume that our main outcome of interest is the fraction of individuals th
 
 ```{r createvar}
 # Use the `mutate()` function from the `dplyr` package to create a new column with this value. Call the new variable `fracinf`.
-#d <- data_raw %>% dplyr::mutate(FILL HERE)
+norodata_plusrate <- norodata_raw %>% dplyr::mutate(fracinf = (CasesAll/RiskAll)*100)
+
+#to calculate rateall we need riskall(total number of persons at risk of being a primary or secondary case) and casesall(totall number of primary and secondary cases)
 ```
 
 
@@ -69,7 +72,16 @@ As you see in the Rmd file, the previous text box is created by placing texts be
 Use both text summaries and plots to take a look at the new variable you created to see if everything looks ok or if we need further cleaning.
 
 ```{r checkdata}
+glimpse(norodata_plusrate$fracinf)
+str(norodata_plusrate$fracinf)
+summary(norodata_plusrate$fracinf)
+head(norodata_plusrate$fracinf)
+unique(norodata_plusrate$fracinf)
+#looking at the values we have both NA and infinite represented
+
+norodata_plusrate %>% ggplot() + geom_histogram(aes(x=fracinf))
 #Write code that takes a look at the values of the `fracinf` variable you created. Look at both text summaries and a figure.
+norodata_plusrate %>% ggplot() + geom_histogram(aes(x=RateAll))
 ```
 
 We notice there are NAs in this variable and the distribution is not normal. The latter is somewhat expected since our variable is a proportion, so it has to be between 0 and 1. There are also a lot of infinite values. Understand where they come from. 
@@ -78,6 +90,19 @@ Let's take a look at the `RateAll` variable recorded in the dataset and compare 
 First, create a plot that lets you quickly see if/how the variables differ. 
 
 ```{r checkoutcome}
+norodata_plusrate %>%
+
+  ggplot(aes(x=RateAll, y=fracinf)) +
+
+  geom_point()
+
+
+
+norodata_plusrate %>%
+
+  ggplot(aes(x=id, y=(RateAll-fracinf))) +
+
+  geom_point()
 # Plot one variable on the x axis, the other on the y axis
 # also plot the difference of the 2 variables
 # make sure you adjust so both are in the same units
@@ -87,6 +112,9 @@ Both ways of plotting the data show that for most outbreaks, the two ways of get
 
 ```{r infvalues}
 #Write code that looks at the values of RateAll where we have inifinite values
+infinity <- subset(norodata_plusrate, fracinf %in% "Inf")
+print(infinity)
+
 ```
 
 You should find that all of the reported values are 0. So what makes more sense? You should have figured out that the infinite values in our computed variables arise because the `RiskAll` variable is 0. That variable contains the total number of persons at risk for an outbreak. If nobody is at risk of getting infected, of course, we can't get any infected. So `RateAll` being 0 is technically correct. But does it make sense to include "outbreaks" in our analysis where nobody is at risk of getting infected? One should question how those got into the spreadsheet in the first place. 
@@ -97,6 +125,20 @@ Here, I think that if nobody is at risk, we shouldn't include those outbreaks in
 
 ```{r filter1}
 #Write code that removes all observations that have an outcome that is not very useful, i.e. either NA or infinity. Then look at the outcome variable again to make sure things are fixed. Also check the size of the new dataset to see by how much it shrunk.
+remove_Inf <- norodata_plusrate %>% filter(!fracinf %in% "Inf") 
+
+
+
+remove_NA <- remove_Inf[!is.na(remove_Inf$fracinf), ]
+
+
+
+glimpse((remove_NA))
+
+
+unique(remove_NA$fracinf)
+min(remove_NA$fracinf)
+max(remove_NA$fracinf)
 ```
 
 

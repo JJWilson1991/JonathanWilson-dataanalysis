@@ -1,6 +1,6 @@
 ---
 title: Continuous Outcome Analysis
-author: YOURNAME
+author: Jonathan Wilson
 date: "`r Sys.Date()`"
 #bibliography: ../media/references.bib
 output: 

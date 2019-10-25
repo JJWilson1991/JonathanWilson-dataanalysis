@@ -18,6 +18,7 @@ library('mlr') #for model fitting.
 library('parallelMap') #for using multiple processors when running models through mlr
 library(gridExtra)
 library(visdat)
+library(pROC)
 ```
 
 
@@ -302,12 +303,7 @@ Next, let's create plots for the categorical variabless. You can use for instanc
 
 ```{r plots-2}
 #write code that produces plots or tables showing our outcome of interest and each categorical predictor.
-```
 
-You should see from plots or tables that some of the categories are small, e.g. for Action1, the "No" category is very small. Very few entries for a given factor create problems during cross-validation (since we can't have a level show up in the holdout if it wasn't part of the fitting set). So let's look at those factor variables a bit closer and fix as needed.
-
-```{r, more-factor-check}
-#write code that looks at tables/summaries of factors 
 
 gg2c4_vs_action1 <- CompData %>% 
 
@@ -370,6 +366,21 @@ gg2c4_vs_Setting <- CompData %>%
 grid.arrange(gg2c4_vs_season, gg2c4_vs_tras1, gg2c4_vs_Setting, nrow = 2)
 ```
 
+You should see from plots or tables that some of the categories are small, e.g. for Action1, the "No" category is very small. Very few entries for a given factor create problems during cross-validation (since we can't have a level show up in the holdout if it wasn't part of the fitting set). So let's look at those factor variables a bit closer and fix as needed.
+
+```{r, more-factor-check}
+
+#write code that looks at tables/summaries of factors 
+
+
+summary(CompData)
+
+table(CompData$Action1)
+
+table(CompData$Country)
+
+table(CompData$Trans1)
+```
 You should see from your explorations above that there is only a single entry for _No_ in `Action1`, and small entries for _Multiple_ and _Unspecified_ in `Country` and _Environmental_ in `Trans1`. The single _No_ should be fixed, the other somewhat small groupings might be ok. It depends on scientific rationale and method of analysis if you should modify/group those or not. We'll do that.
 
 Change things as follows: Remove the observation for which action is _No_, combine Countries into 3 groups Japan/USA/Other, and since I don't even know what biologically the difference is between _Environmental_ and _Waterborne_ transmission (seems the same route to me based on my norovirus knowledge), we'll move the Waterborne into the environmental. Finally, I noticed there is a blank category for season. That likely means it wasn't stated in the paper. Let's recode that as _Unknown_. Finally, re-order data such that the outcome is the first column and again remove empty factor levels. Then look at your resulting data frame.
@@ -377,6 +388,65 @@ Change things as follows: Remove the observation for which action is _No_, combi
 
 ```{r, more-factor-cleaning}
 #write code that does the actions described above
+#remove no
+remove_no <- CompData %>%
+
+  subset(Action1 != "No")
+
+remove_no <- remove_no %>%
+
+  droplevels(remove_no$Action1)
+
+summary(remove_no$Action1)
+
+#recode country
+
+summary(remove_no$Country)
+
+Multiple<- remove_no %>%
+
+  mutate(Country= fct_recode(Country, "Other" = "Multiple"))
+
+         
+
+Unspec <- Multiple %>%
+
+  mutate(Country= fct_recode(Country, "Other" = "Unspecified"))
+
+
+summary(Unspec$Country)
+
+summary(Unspec$Trans1)
+
+
+
+#environemntal
+
+
+Environmental <- Unspec %>%
+
+  mutate(Trans1= fct_recode(Trans1, "Environmental" = "Waterborne"))
+
+summary(Environmental$Trans1)
+
+#Seasons
+
+summary(Environmental$season)
+
+Season <- Environmental %>%
+
+  mutate(season= fct_recode(season, "Unknown" = ""))
+
+summary(Season$season)
+
+#reorder outcome
+Outcomefirst <- Season %>%
+
+  select(gg2c4, everything())
+
+summary(Outcomefirst)
+
+vis_dat(Outcomefirst)
 ```
 
 
@@ -414,9 +484,9 @@ parallelStartSocket(ncpu, show.info=FALSE)
 Some setup settings that are used in various code chunks below. 
 
 ```{r mlr-setup}
-outcome <- d$gg2c4 
+outcome <- Outcomefirst$gg2c4 
 outcomename = "gg2c4"
-predictors <- d[,-1]
+predictors <- Outcomefirst[,-1]
 npred=ncol(predictors)
 #set sampling method for performance evaluation
 #here, we use 5-fold cross-validation, 5-times repeated
@@ -435,6 +505,9 @@ For accuracy, the simplest null model always predicts the most frequent category
 ```{r nullmodel-acc}
 #write code that computes accuracy for a null model
 #the null model always predicts "No"
+measureACC("No", Outcomefirst$gg2c4)
+
+
 ```
 
 You should find that the null model has an accuracy of around 0.69.
@@ -454,7 +527,7 @@ unifmat=data.frame(variable = rep(0,npred), Accuracy = rep(0,npred))
 # loop over each predictor, build simple dataset with just outcome and that predictor, fit it to a glm/logistic model
 for (nn in 1:npred)
 {
-    unidata = data.frame(gg2c4 = outcome, d[,nn+1] )
+    unidata = data.frame(gg2c4 = outcome, Outcomefirst[,nn+1] )
     ## Generate the task, i.e. define outcome and predictors to be fit
     mytask = makeClassifTask(id='unianalysis', data = unidata, target = outcomename, positive = "Yes")
     model = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = acc )
@@ -473,7 +546,7 @@ Now let's fit a full logistic model with all predictors.
 ```{r fullfit}
 set.seed(1111) #makes each code block reproducible
 #do full model with Cross-Validation - to get an idea for the amount of over-fitting a full model does
-mytask = makeClassifTask(id='fullanalysis', data = d, target = outcomename, positive = "Yes")
+mytask = makeClassifTask(id='fullanalysis', data = Outcomefirst, target = outcomename, positive = "Yes")
 fullmodel = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = acc )
 ACC_fullmodel = fullmodel$aggr[1]
 print(ACC_fullmodel)
@@ -546,6 +619,11 @@ Using this approach, a model is evaluated based on the Area under the curve (AUC
 #the null model always predicts "No"
 #the auc function in the pROC package is useful
 #or you can use any other package/function you want to use to compute AUC/ROC
+
+
+nullmod <- roc(Outcomefirst$gg2c4, rep(1,849))
+
+auc(nullmod)
 ```
 
 You should find that the null model has an AUC of 0.5, as expected for a "no information" model.
@@ -554,6 +632,24 @@ Now we run the single-predictor models again.
 
 ```{r, unifit-auc, warning=FALSE}
 #copy and paste the code from above for single predictor fits, but now switch to AUC instead of accuracy.
+set.seed(1111) #makes each code block reproducible
+#set learner/model. this corresponds to a logistic model.
+#mlr calls different models different "learners"
+learner_name = "classif.binomial";
+mylearner = makeLearner(learner_name, predict.type = "prob")
+# this will contain the results
+unifmat=data.frame(variable = rep(0,npred), Accuracy = rep(0,npred))
+# loop over each predictor, build simple dataset with just outcome and that predictor, fit it to a glm/logistic model
+for (nn in 1:npred)
+{
+    unidata = data.frame(gg2c4 = outcome, Outcomefirst[,nn+1] )
+    ## Generate the task, i.e. define outcome and predictors to be fit
+    mytask = makeClassifTask(id='unianalysis', data = unidata, target = outcomename, positive = "Yes")
+    model = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = mlr :: auc )
+    unifmat[nn,1] = names(predictors)[nn] 
+    unifmat[nn,2] = model$aggr
+}
+kable(unifmat)
 ```
 
 Looks like there are a few single-predictor models with better performance than the null model.
@@ -563,6 +659,12 @@ Now let's again fit a full model with all predictors.
 
 ```{r fullfit-auc}
 #copy and paste the code from above for the full model fit, but now switch to AUC instead of accuracy.
+set.seed(1111) #makes each code block reproducible
+#do full model with Cross-Validation - to get an idea for the amount of over-fitting a full model does
+mytask = makeClassifTask(id='fullanalysis', data = Outcomefirst, target = outcomename, positive = "Yes")
+fullmodel = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = mlr :: auc )
+AUC_fullmodel = fullmodel$aggr[1]
+print(AUC_fullmodel)
 ```
 
 This is better than any single-predictor models. Let's see if a sub-model can do even better.
@@ -571,6 +673,44 @@ This is better than any single-predictor models. Let's see if a sub-model can do
 
 ```{r mlr-subset-auc}
 #copy and paste the code from above for the subset selection, but now switch to AUC instead of accuracy.
+set.seed(1111) 
+tstart=proc.time(); #capture current CPU time for timing how long things take
+#do 2 forms of forward and backward selection, just to compare
+select_methods=c("sbs","sfbs","sfs","sffs") 
+resmat=data.frame(method = rep(0,4), Accuracy = rep(0,4), Model = rep(0,4))
+ct=1;
+for (select_method in select_methods) #loop over all stepwise selection methods
+{
+  ctrl = makeFeatSelControlSequential(method = select_method)
+  print(sprintf('doing subset selection with method %s ',select_method))
+  sfeat_res = selectFeatures(learner = mylearner, 
+                             task = mytask, 
+                             resampling = sampling_choice, 
+                             control = ctrl, 
+                             show.info = FALSE,
+                             measures = mlr :: auc)
+  
+  resmat[ct,1] = select_methods[ct]
+  resmat[ct,2] = sfeat_res$y
+  resmat[ct,3] = paste(as.vector(sfeat_res$x), collapse= ', ')
+  ct=ct+1;
+}
+# do feature selection with genetic algorithm
+maxit = 100 #number of iterations - should be large for 'production run'
+ctrl_GA =makeFeatSelControlGA(maxit = maxit)
+print(sprintf('doing subset selection with genetic algorithm'))
+sfeatga_res = selectFeatures(learner = mylearner, 
+                                   task = mytask, 
+                                   resampling = sampling_choice, 
+                                   control = ctrl_GA, 
+                                   show.info = FALSE,
+                                   measures = mlr :: auc)
+resmat[5,1] = "GA"
+resmat[5,2] = sfeatga_res$y
+resmat[5,3] = paste(as.vector(sfeatga_res$x), collapse= ', ')
+runtime.minutes_SS=(proc.time()-tstart)[[3]]/60; #total time in minutes the optimization took
+print(sprintf('subset selection took %f minutes',runtime.minutes_SS));
+kable(resmat)
 ```
 
 Looks like we get some sub-models that are slightly better than the full model, at least as evaluated using the (cross-validated) AUC measure.
@@ -582,7 +722,7 @@ While this is a common measure and useful to evaluate how models perform at diff
 
 ```{r roc-plot}
 set.seed(1111) #makes each code block reproducible
-d2 <- d %>% dplyr::select(gg2c4, sfeatga_res$x )
+d2 <- Outcomefirst %>% dplyr::select(gg2c4, sfeatga_res$x )
 mytask = makeClassifTask(id='rocanalysis', data = d2, target = outcomename, positive = "Yes")
 log_mod = train(mylearner, mytask)
 log_pred = predict(log_mod, task = mytask)
@@ -608,15 +748,77 @@ Let's re-run the single model, followed by the full model and subset selection.
 
 ```{r, unifit-auc-lda, warning=FALSE}
 #copy and paste the code from above for single predictor fits. Switch the learner from a the logistic model to a LDA model. Check the mlr website to figure out the name for that learner. (see 'integrated learner' section)
+set.seed(1111) #makes each code block reproducible
+#set learner/model. this corresponds to a logistic model.
+#mlr calls different models different "learners"
+learner_name = "classif.lda";
+mylearner = makeLearner(learner_name, predict.type = "prob")
+# this will contain the results
+unifmat=data.frame(variable = rep(0,npred), Accuracy = rep(0,npred))
+# loop over each predictor, build simple dataset with just outcome and that predictor, fit it to a glm/logistic model
+for (nn in 1:npred)
+{
+    unidata = data.frame(gg2c4 = outcome, Outcomefirst[,nn+1] )
+    ## Generate the task, i.e. define outcome and predictors to be fit
+    mytask = makeClassifTask(id='unianalysis', data = unidata, target = outcomename, positive = "Yes")
+    model = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = mlr :: auc )
+    unifmat[nn,1] = names(predictors)[nn] 
+    unifmat[nn,2] = model$aggr
+}
+kable(unifmat)
 ```
 
 ```{r fullfit-auc-lda}
 #copy and paste the code from above for the full model fit, but now for LDA. Since you already switched the learner/model above, no further adjustment should be needed
+set.seed(1111) #makes each code block reproducible
+#do full model with Cross-Validation - to get an idea for the amount of over-fitting a full model does
+mytask = makeClassifTask(id='fullanalysis', data = Outcomefirst, target = outcomename, positive = "Yes")
+fullmodel = resample(mylearner, task = mytask, resampling = sampling_choice, show.info = FALSE, measures = mlr :: auc )
+AUC_fullmodel = fullmodel$aggr[1]
+print(AUC_fullmodel)
 ```
 
 
 ```{r mlr-subset-auc-lda}
 #copy and paste the code from above for subset selection, now for LDA. Since you already switched the learner/model above, no further adjustment should be needed
+set.seed(1111) 
+tstart=proc.time(); #capture current CPU time for timing how long things take
+#do 2 forms of forward and backward selection, just to compare
+select_methods=c("sbs","sfbs","sfs","sffs") 
+resmat=data.frame(method = rep(0,4), Accuracy = rep(0,4), Model = rep(0,4))
+ct=1;
+for (select_method in select_methods) #loop over all stepwise selection methods
+{
+  ctrl = makeFeatSelControlSequential(method = select_method)
+  print(sprintf('doing subset selection with method %s ',select_method))
+  sfeat_res = selectFeatures(learner = mylearner, 
+                             task = mytask, 
+                             resampling = sampling_choice, 
+                             control = ctrl, 
+                             show.info = FALSE,
+                             measures = mlr :: auc)
+  
+  resmat[ct,1] = select_methods[ct]
+  resmat[ct,2] = sfeat_res$y
+  resmat[ct,3] = paste(as.vector(sfeat_res$x), collapse= ', ')
+  ct=ct+1;
+}
+# do feature selection with genetic algorithm
+maxit = 100 #number of iterations - should be large for 'production run'
+ctrl_GA =makeFeatSelControlGA(maxit = maxit)
+print(sprintf('doing subset selection with genetic algorithm'))
+sfeatga_res = selectFeatures(learner = mylearner, 
+                                   task = mytask, 
+                                   resampling = sampling_choice, 
+                                   control = ctrl_GA, 
+                                   show.info = FALSE,
+                                   measures = mlr :: auc)
+resmat[5,1] = "GA"
+resmat[5,2] = sfeatga_res$y
+resmat[5,3] = paste(as.vector(sfeatga_res$x), collapse= ', ')
+runtime.minutes_SS=(proc.time()-tstart)[[3]]/60; #total time in minutes the optimization took
+print(sprintf('subset selection took %f minutes',runtime.minutes_SS));
+kable(resmat)
 ```
 
 It Looks like we again get some sub-models that are slightly better than the full model, at least as evaluated using the (cross-validated) AUC measure. There seems to be a bit, but not much difference in performance to the logistic model. We can take the GA model again (because it's conveniently at the end, even if it's not the best) and look at its ROC and compare the curves for the LDA and logistic models.
@@ -626,6 +828,13 @@ It Looks like we again get some sub-models that are slightly better than the ful
 #copy the code from roc-plot above and re-do train/predict byt now save it as lda_mod and lda_pred
 #then use generateThreshVsPerfData() with both lda_pred and log_pred (computed above) to create a structure that contains
 #best model curves for both logistic and LDA, then plot the curves.
+set.seed(1111) #makes each code block reproducible
+d2 <- Outcomefirst %>% dplyr::select(gg2c4, sfeatga_res$x )
+mytask = makeClassifTask(id='rocanalysis', data = d2, target = outcomename, positive = "Yes")
+lda_mod = train(mylearner, mytask)
+lda_pred = predict(lda_mod, task = mytask)
+df = generateThreshVsPerfData(list(LDA = lda_pred, logistic = log_pred), measures = list(fpr, tpr))
+plotROCCurves(df)
 ```
 
 You should see from the plot that the LDA model performs very similar to the Logistic model.

@@ -16,6 +16,8 @@ library('ggplot2')
 library('knitr')
 library('mlr') #for model fitting.
 library('parallelMap') #for using multiple processors when running models through mlr
+library(gridExtra)
+library(visdat)
 ```
 
 
@@ -26,6 +28,9 @@ We will again use the Norovirus dataset.
 ```{r loaddata}
 #Write code that loads the dataset 
 #You can of course re-use code you wrote in the other file.
+norodata_raw <- read.csv("./norodata.csv")
+
+glimpse(norodata_raw)
 ```
 
 
@@ -35,12 +40,27 @@ For this analysis, our main outcome of interest is if an outbreak was caused by 
 
 ```{r checkoutcome}
 #write code to take a look at the outcome variable (gg2c4)
+table(norodata_raw$gg2c4)
+print(norodata_raw$gg2c4)
 ```
 Overall, it looks ok, a decent amout in each category (i.e. no unbalanced data). However, we see an odd coding, there are only 2 types of entries, either "Yes" or "", i.e. an empty space. The codebook tells us that this is how things were coded, if it was G2.4 it got a "Yes", if it wasn't it did get an empty space instead of a "No". That's somewhat strange and while the analysis should work, it is better to re-code the empty slots with "No".
 
 ```{r clean-outcome}
 #write code to change the empty values in gg2c4 to "No"
+
+norodata_raw$gg2c4[which(norodata_raw$gg2c4=="")] <- "No" 
+glimpse(norodata_raw$gg2c4) #this makes No as NA so we'll try and fix it
+
+norodata_raw$gg2c4 <- as.character(norodata_raw$gg2c4)
+
+norodata_raw$gg2c4[is.na(norodata_raw$gg2c4)] <- "No"
+
+glimpse(norodata_raw$gg2c4)
+
+#lovely
+
 ```
+
 
 
 # Selecting predictors
@@ -49,8 +69,8 @@ We will pick similar variables as previously, with some adjustments based on wha
 
 
 ```{r reducepredictors}
-d <- d %>% dplyr::select(Action1, CasesAll, Country, Deaths, gg2c4, Hemisphere, Hospitalizations,  MeanD1, MeanI1, MedianD1, MedianI1, OBYear, Path1, RiskAll, season, Setting_1, Trans1, Vomit)
-dim(d)
+norodata_rawv <- norodata_raw %>% dplyr::select(Action1, CasesAll, Country, Deaths, gg2c4, Hemisphere, Hospitalizations,  MeanD1, MeanI1, MedianD1, MedianI1, OBYear, Path1, RiskAll, season, Setting_1, Trans1, Vomit)
+dim(norodata_rawv)
 ```
 
 
@@ -62,12 +82,15 @@ Let's first check for missing values.
 
 ```{r check-reduced-data}
 # write code that looks at missing values
+vis_miss(norodata_rawv)
 ```
 
 Looks like we have again some missing in `Hospitalization` and `Deaths`, and some more in `RiskAll`. Since the missing is not excessive, and to make our life easier, we'll drop them for now. Note however the 'blocks' of missing values for RiskAll. Given that these outbreaks should be entered fairly randomly into the spreadsheet, it is strange to see the NA show up in such blocks. For a real data analysis, it would be worth looking closer and checking why there is a clustering like that.
 
 ```{r further-reduce-data}
 # write code to remove any observations with NA
+removena_noro <- na.omit(norodata_rawv)
+vis_miss(removena_noro)
 ```
 
 
@@ -76,7 +99,20 @@ You will likely find that as you convert `OBYear` to numeric, something doesn't 
 
 ```{r adjust}
 #write code that cleans OBYear, convert it to numeric. Remove observations with OBYear = 0. 
+unique(removena_noro$OBYear)
+
+print(removena_noro$OBYear == "1983")
+
+remove1983 <- removena_noro[!(removena_noro$OBYear == "1983"), ]
+
+remove1983$OBYear <- as.numeric(levels(remove1983$OBYear))[remove1983$OBYear]
+
+cleanOBY <- remove1983[!(remove1983$OBYear == "0"), ]
+
+unique(cleanOBY$OBYear)
 #also convert any other variables as needed
+cleanOBY$gg2c4 <- as.factor(cleanOBY$gg2c4)
+glimpse(cleanOBY)
 ```
 
 Next, we remove the `Unspecified` entry in `Hemisphere` and recode `Action1` and `Path1` as described in the Data Analysis script, i.e. from `Unknown` to `Unspecified`. Also do the same grouping into just `Restaurant` and `Other` with the `Setting_1` variable. Again, remember that there are `restaurant` and `Restaurant` values, so you need to fix that too. 
@@ -85,6 +121,40 @@ Next, we remove the `Unspecified` entry in `Hemisphere` and recode `Action1` and
 ```{r clean-more-predictors}
 # write code that performs the actions described above
 # at the end, use the droplevels() command to remove empty factor levels
+glimpse(cleanOBY$Hemisphere)
+
+drop_UH <- cleanOBY[!(cleanOBY$Hemisphere == "Unspecified"), ]
+
+recodeA1P1 <- drop_UH %>% dplyr::mutate(Action1 = recode(Action1, "Unknown" = "Unspecified")) %>% dplyr::mutate(Path1 = recode(Path1, "Unknown" = "Unspecified"))
+
+
+RecodeRestaurant <- recodeA1P1 %>% mutate(Setting_1 = recode(Setting_1, "restaurant" = "Restaurant", "take-out restaurant" = "Restaurant", "Luncheon and Restaruant" = "Restaurant",
+"Catering service in Restaurant" = "Restaurant",
+"restaurant in Northern Territory" = "Restaurant",
+"Shared meal at a restaurant" = "Restaurant",
+"Resaurant" = "Restaurant",
+"restaurant; catered party" = "Restaurant"))
+
+find_Restaurant <- RecodeRestaurant[grep("Restaurant", RecodeRestaurant$Setting_1), ]
+
+
+
+Restnew <- find_Restaurant %>% dplyr::mutate(Setting = "Restaurant")
+
+Other <- dplyr::filter(RecodeRestaurant, !grepl("Restaurant", Setting_1))
+
+Setting_Other <- Other %>% dplyr::mutate(Setting = "Other")
+
+combined_data <- merge(Setting_Other, Restnew, all = TRUE)
+
+combined_data$Setting_1 <- NULL
+
+
+RestaurantData <- combined_data
+
+RestaurantData$Setting <- as.factor(as.character(RestaurantData$Setting))
+glimpse(RestaurantData)
+CompData <- RestaurantData
 ```
 
 
@@ -98,6 +168,132 @@ Next, let's create a few plots showing the outcome and the predictors. For the c
 ```{r plots-1}
 #write code that produces plots showing our outcome of interest on the x-axis and each numeric predictor on the y-axis.
 #you can use the facet_wrap functionality in ggplot for it, or do it some other way.
+gg2c4_vs_casesall <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = CasesAll, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+
+
+gg2c4_vs_deaths <-  CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Deaths, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_hosp <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Hospitalizations, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_meand1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = MeanD1, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+
+
+gg2c4_vs_meani1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = MeanI1, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_mediand1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = MedianD1, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_mediani1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = MedianI1, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_obyear <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = OBYear, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_riskall <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = RiskAll, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+gg2c4_vs_vomit <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Vomit, color = gg2c4)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+grid.arrange(gg2c4_vs_casesall, gg2c4_vs_deaths, gg2c4_vs_hosp, gg2c4_vs_meand1, gg2c4_vs_meani1, gg2c4_vs_mediand1, gg2c4_vs_mediani1, gg2c4_vs_obyear, gg2c4_vs_riskall, gg2c4_vs_vomit, nrow = 2)
+
 ```
 
 Things look ok, apart from the skew in the predictors we discussed previously.
@@ -112,6 +308,66 @@ You should see from plots or tables that some of the categories are small, e.g. 
 
 ```{r, more-factor-check}
 #write code that looks at tables/summaries of factors 
+
+gg2c4_vs_action1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Action1)) + 
+
+  geom_count() 
+
+
+
+gg2c4_vs_country <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Country)) + 
+
+  geom_count() 
+
+
+
+gg2c4_vs_hemi <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Hemisphere)) + 
+
+  geom_count() 
+
+
+
+gg2c4_vs_path1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Path1)) + 
+
+  geom_count() 
+
+grid.arrange(gg2c4_vs_action1, gg2c4_vs_country, gg2c4_vs_hemi, gg2c4_vs_path1, nrow = 2)
+```
+```{r}
+
+gg2c4_vs_season <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = season)) + 
+
+  geom_count() 
+
+
+
+gg2c4_vs_tras1 <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Trans1)) + 
+
+  geom_count() 
+
+
+
+gg2c4_vs_Setting <- CompData %>% 
+
+  ggplot(aes(x = gg2c4, y = Action1)) + 
+
+  geom_count() 
+
+
+
+grid.arrange(gg2c4_vs_season, gg2c4_vs_tras1, gg2c4_vs_Setting, nrow = 2)
 ```
 
 You should see from your explorations above that there is only a single entry for _No_ in `Action1`, and small entries for _Multiple_ and _Unspecified_ in `Country` and _Environmental_ in `Trans1`. The single _No_ should be fixed, the other somewhat small groupings might be ok. It depends on scientific rationale and method of analysis if you should modify/group those or not. We'll do that.

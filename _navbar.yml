@@ -8,6 +8,7 @@ left:
       - text: "Variable Selection"
         href: ./Variable_Selection.html
   - text: "About the Author"
-    href: ./Author.htmlright:
+    href: ./Author.html
+right:
   - icon: fa-github fa-lg
     href: https://github.com/epid8060fall2019/JonathanWilson-dataanalysis/

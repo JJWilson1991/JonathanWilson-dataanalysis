@@ -433,7 +433,9 @@ div.tocify {
     <li>
       <a href="./Continuous_Outcome_Analysis.html">Continuous Outcome Analysis</a>
     </li>
-    <li class="dropdown-header">Variable Selection</li>
+    <li>
+      <a href="./Variable_Selection--1-.html">Variable Selection</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -1512,7 +1514,7 @@ div.tocify {
 <a class="sourceLine" id="cb87-9" title="9">resmat[<span class="dv">5</span>,<span class="dv">3</span>] =<span class="st"> </span><span class="kw">paste</span>(<span class="kw">as.vector</span>(sfeatga_res<span class="op">$</span>x), <span class="dt">collapse=</span> <span class="st">&#39;, &#39;</span>)</a>
 <a class="sourceLine" id="cb87-10" title="10">runtime.minutes_SS=(<span class="kw">proc.time</span>()<span class="op">-</span>tstart)[[<span class="dv">3</span>]]<span class="op">/</span><span class="dv">60</span>; <span class="co">#total time in minutes the optimization took</span></a>
 <a class="sourceLine" id="cb87-11" title="11"><span class="kw">print</span>(<span class="kw">sprintf</span>(<span class="st">&#39;subset selection took %f minutes&#39;</span>,runtime.minutes_SS));</a></code></pre></div>
-<pre><code>## [1] &quot;subset selection took 3.462000 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 3.320333 minutes&quot;</code></pre>
 <div class="sourceCode" id="cb89"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb89-1" title="1"><span class="kw">kable</span>(resmat)</a></code></pre></div>
 <table>
 <thead>
@@ -1728,7 +1730,7 @@ div.tocify {
 <a class="sourceLine" id="cb104-9" title="9">resmat[<span class="dv">5</span>,<span class="dv">3</span>] =<span class="st"> </span><span class="kw">paste</span>(<span class="kw">as.vector</span>(sfeatga_res<span class="op">$</span>x), <span class="dt">collapse=</span> <span class="st">&#39;, &#39;</span>)</a>
 <a class="sourceLine" id="cb104-10" title="10">runtime.minutes_SS=(<span class="kw">proc.time</span>()<span class="op">-</span>tstart)[[<span class="dv">3</span>]]<span class="op">/</span><span class="dv">60</span>; <span class="co">#total time in minutes the optimization took</span></a>
 <a class="sourceLine" id="cb104-11" title="11"><span class="kw">print</span>(<span class="kw">sprintf</span>(<span class="st">&#39;subset selection took %f minutes&#39;</span>,runtime.minutes_SS));</a></code></pre></div>
-<pre><code>## [1] &quot;subset selection took 3.863500 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 4.801667 minutes&quot;</code></pre>
 <div class="sourceCode" id="cb106"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb106-1" title="1"><span class="kw">kable</span>(resmat)</a></code></pre></div>
 <table>
 <thead>
@@ -1944,7 +1946,7 @@ div.tocify {
 <a class="sourceLine" id="cb121-9" title="9">resmat[<span class="dv">5</span>,<span class="dv">3</span>] =<span class="st"> </span><span class="kw">paste</span>(<span class="kw">as.vector</span>(sfeatga_res<span class="op">$</span>x), <span class="dt">collapse=</span> <span class="st">&#39;, &#39;</span>)</a>
 <a class="sourceLine" id="cb121-10" title="10">runtime.minutes_SS=(<span class="kw">proc.time</span>()<span class="op">-</span>tstart)[[<span class="dv">3</span>]]<span class="op">/</span><span class="dv">60</span>; <span class="co">#total time in minutes the optimization took</span></a>
 <a class="sourceLine" id="cb121-11" title="11"><span class="kw">print</span>(<span class="kw">sprintf</span>(<span class="st">&#39;subset selection took %f minutes&#39;</span>,runtime.minutes_SS));</a></code></pre></div>
-<pre><code>## [1] &quot;subset selection took 3.572167 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 5.818000 minutes&quot;</code></pre>
 <div class="sourceCode" id="cb123"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb123-1" title="1"><span class="kw">kable</span>(resmat)</a></code></pre></div>
 <table>
 <thead>

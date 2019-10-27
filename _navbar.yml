@@ -6,9 +6,16 @@ left:
       - text: "Continuous Outcome Analysis"
         href: ./Continuous_Outcome_Analysis.html
       - text: "Variable Selection"
-        href: ./Variable_Selection--1-.html
+        href: ./Variable_Selection.html
+
+  -  text: "Completed Projects"
+
+    menu:
+
+      - text: "Coding Exercise"
+        href: ./JJW-coding-exercise.html
+
   - text: "About the Author"
-    href: ./Author.html
-right:
+    href: ./Author.htmlright:
   - icon: fa-github fa-lg
     href: https://github.com/epid8060fall2019/JonathanWilson-dataanalysis

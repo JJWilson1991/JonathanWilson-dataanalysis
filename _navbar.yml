@@ -7,6 +7,8 @@ left:
         href: ./Continuous_Outcome_Analysis.html
       - text: "Variable Selection"
         href: ./Variable_Selection.html
+      - text: "Tree Fitting"
+        href: ./Tree_Fitting.html
   - text: "About the Author"
     href: ./Author.html
 right:

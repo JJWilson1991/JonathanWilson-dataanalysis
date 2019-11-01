@@ -23,6 +23,9 @@ library('rpart.plot')
 library('mda')
 library('ranger')
 library('e1071')
+library(gridExtra)
+library(mlr)
+library(visdat)
 ```
 
 
@@ -45,6 +48,10 @@ For this analysis, we consider as our main outcome of interest the season. This 
 
 ```{r checkoutcome}
 #write code to take a look at the outcome variable (season)
+unique(norodata_raw$season)
+summary(norodata_raw$season)
+#there seems to be a few blank season obs
+
 ```
 We already knew from previous explorations that some entries do not have a season. We could either code them as "other" and keep them in the model, or remove them. Since it's hard to see any potential scientific reason why there should be a correlation between an "other" season and some variable, we'll remove it here.
 
@@ -53,6 +60,13 @@ We also notice that while winter is dominant (makes sense, we know that noroviru
 ```{r clean-outcome}
 #write code that removes all observations that have an empty/missing value for season
 #then drop the empty level and check that you have 4 categories for season left
+remove_blank <- norodata_raw[!(norodata_raw$season == ""), ]
+
+drop_levels <- droplevels(remove_blank)
+
+
+
+glimpse(drop_levels$season)
 ```
 
 
@@ -63,6 +77,8 @@ We will pick similar variables as previously, but with some changes. Keep the fo
 
 ```{r reducepredictors}
 # write code that retains the above mentioned variables
+reduced <- drop_levels %>% dplyr::select(Action1, CasesAll, Country, Deaths, EndMonth, gg2c4, Hemisphere, Hospitalizations, MeanD1, MeanI1, MedianD1, MedianI1, OBYear, Path1, RateAll, RiskAll, season, Setting_1, StartMonth, State, Trans1, Vomit)
+
 ```
 
 
@@ -74,6 +90,7 @@ Let's first check for missing values.
 
 ```{r check-reduced-data}
 # write code that looks at missing values
+vis_miss(reduced)
 ```
 
 Looks like none of the new variables we included had a ton of missing, so we would probably be ok just removing any observation that has missing data. **However**, tree-based models can deal with missing data in predictors. Therefore, we'll keep them for now. We'll later compare how the model does or does not change if we remove those observations. 
@@ -86,13 +103,22 @@ You will likely find that as you convert `OBYear` to numeric, something doesn't 
 ```{r adjust}
 #write code that cleans OBYear, convert it to numeric. Remove observations with OBYear = 0. 
 #also convert any other variables as needed
+remove_1983 <- reduced[!(reduced$OBYear == "1983"), ]
+
+remove_1983$OBYear <- as.numeric(levels(remove_1983$OBYear))[remove_1983$OBYear]
+
+OB_Clean <- remove_1983[!(remove_1983$OBYear == "0"), ]
+
+unique(OB_Clean$OBYear)
+
+glimpse(OB_Clean)
 ```
 
 Look at the data to see what else we need to do.
 
 ```{r}
-str(d)
-summary(d)
+str(OB_Clean)
+summary(OB_Clean)
 ```
 
 Some issues we noted previously: We need to remove the `Unspecified` entry in `Hemisphere` and recode `Action1` and `Path1` as described in the _Data Analysis exercise_, i.e., from `Unknown` to `Unspecified`. Also, we want to group the `Setting_1` variable into just `Restaurant` and `Other`. Again, remember that there are `restaurant` and `Restaurant` values, so you need to fix that too. 
@@ -106,6 +132,71 @@ As discussed previously, it makes sense to move the Waterborne to the Environmen
 Finally, move the outcome into the first column.
 
 ```{r clean-more-predictors}
+drop_UH <- OB_Clean[!(OB_Clean$Hemisphere == "Unspecified"), ]
+
+recodeA1P1 <- drop_UH %>% dplyr::mutate(Action1 = recode(Action1, "Unknown" = "Unspecified")) %>% dplyr::mutate(Path1 = recode(Path1, "Unknown" = "Unspecified"))
+
+
+RecodeRestaurant <- recodeA1P1 %>% mutate(Setting_1 = recode(Setting_1, "restaurant" = "Restaurant", "take-out restaurant" = "Restaurant", "Luncheon and Restaruant" = "Restaurant",
+"Catering service in Restaurant" = "Restaurant",
+"restaurant in Northern Territory" = "Restaurant",
+"Shared meal at a restaurant" = "Restaurant",
+"Resaurant" = "Restaurant",
+"restaurant; catered party" = "Restaurant"))
+
+find_Restaurant <- RecodeRestaurant[grep("Restaurant", RecodeRestaurant$Setting_1), ]
+
+
+
+Restnew <- find_Restaurant %>% dplyr::mutate(Setting = "Restaurant")
+
+Other <- dplyr::filter(RecodeRestaurant, !grepl("Restaurant", Setting_1))
+
+Setting_Other <- Other %>% dplyr::mutate(Setting = "Other")
+
+combined_d<- merge(Setting_Other, Restnew, all = TRUE)
+
+combined_d$Setting_1 <- NULL
+
+
+#Recode gg2c4 
+
+levels(combined_d$gg2c4)[levels(combined_d$gg2c4) == ""] <- "No"
+
+
+#Remove Action1 = "No" 
+
+modify_A1 <- combined_d[!combined_d$Action1 == "No", ]
+
+
+#Combine countries 
+combine_country <- modify_A1 %>% dplyr::mutate(Country = recode(Country, "Multiple" = "Other", "Unspecified" = "Other"))
+
+#Waterborne to Environmental
+
+combine_trans <- combine_country %>% dplyr::mutate(Trans1 = recode(Trans1, "Waterborne" = "Environmental"))
+
+#Drop state 
+
+drop_state <- dplyr::select(combine_trans, -State)
+
+#Set Setting as.factor
+
+drop_state$Setting <- as.factor(as.character(drop_state$Setting))
+
+
+#Droplevels to remove empty factor levels
+
+droplevels(drop_state)
+
+#Move outcome to first column in dataset
+
+drop_state <- drop_state[, c(17,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,19,20,21)]
+
+
+data_clean <- drop_state
+
+
 # write code that performs the actions described above
 # at the end, use the droplevels() command to remove empty factor levels
 ```
@@ -121,7 +212,122 @@ We know our data fairly well by now, so we might not discover much new in any pl
 ```{r plots-1}
 #write code that produces plots showing our outcome of interest on the x-axis and each numeric predictor on the y-axis.
 #you can use the facet_wrap functionality in ggplot for it, or do it some other way.
+season_vs_caseall <- data_clean %>% 
+
+  ggplot(aes(x = season, y = CasesAll, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_deaths <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Deaths, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_hosp <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Hospitalizations, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_MeanD1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = MeanD1, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_meani1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = MeanI1, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_medianD1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = MedianD1, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_mediani1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = MedianI1, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_OByear <- data_clean %>% 
+
+  ggplot(aes(x = season, y = OBYear, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+season_vs_riskAll <- data_clean %>% 
+
+  ggplot(aes(x = season, y = RiskAll, color = season)) + 
+
+  geom_violin() + 
+
+  geom_point(alpha = 0.25) + 
+
+  theme(legend.position = "none")
+
+
+
+
+
+
+
+grid.arrange(season_vs_caseall, season_vs_deaths, season_vs_hosp, season_vs_MeanD1, season_vs_meani1, season_vs_medianD1, season_vs_mediani1, season_vs_OByear, season_vs_riskAll, nrow = 2)
+
 ```
+
 
 Things look ok, apart from the skew in the predictors we discussed previously.
 
@@ -129,13 +335,82 @@ Next, let's create plots for the categorical variables. You can use, for instanc
 
 ```{r plots-2}
 #write code that produces plots or tables showing our outcome of interest and each categorical predictor.
+season_vs_Action1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Action1, color = season)) + 
+
+  geom_count()
+
+
+
+
+
+season_vs_Path1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Path1, color = season)) + 
+
+  geom_count() 
+
+
+
+season_vs_Setting <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Setting, color = season)) + 
+
+  geom_count()
+
+
+
+season_vs_Hemi <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Hemisphere, color = season)) + 
+
+  geom_count()
+
+
+
+season_vs_Country <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Country, color = season)) + 
+
+  geom_count()
+
+
+
+season_vs_Trans1 <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Trans1, color = season)) + 
+
+  geom_count()
+
+
+
+season_vs_Season <- data_clean %>% 
+
+  ggplot(aes(x = season, y = season, color = season)) + 
+
+  geom_count()
+
+
+
+season_vs_Vomit <- data_clean %>% 
+
+  ggplot(aes(x = season, y = Vomit, color = season)) + 
+
+  geom_count() 
+
+
+
+grid.arrange(season_vs_Action1, season_vs_Country, season_vs_Hemi, season_vs_Trans1, nrow = 2)
+
+grid.arrange(season_vs_Path1, season_vs_Season, season_vs_Setting, season_vs_Vomit, nrow = 2)
 ```
 
 Looks ok. Notice the NA for vomiting. We are ok with that for now.
 
 ```{r}
-dim(d)
-str(d)
+dim(data_clean)
+str(data_clean)
 ```
 
 At this step, you should have a dataframe containing 952 observations, and 21 variables: 1 outcome, 12 numeric/integer predictors, and 8 factor variables. All variables should have values that are ready for analysis. The outcome should be in the 1st slot.
@@ -150,6 +425,11 @@ Let's do data splitting again. Use `caret` functions (or any other way you like)
 #write code that splits data into 70/30 train/test
 #call the 2 parts data_train and data_test
 set.seed(123)
+trainset <- caret::createDataPartition(y = data_clean$season, p = 0.7, list = FALSE)
+
+data_train = data_clean[trainset,] 
+
+data_test = data_clean[-trainset,] 
 ```
 
 # Parallelization
@@ -175,6 +455,15 @@ To define a null model, we need to determine what performance measure we want to
 
 ```{r nullmodel-acc}
 #write code that computes accuracy for a null model that always predicts the most common category
+measureACC("", data_train$season)
+
+
+
+frequencies <- as.matrix(summary(data_train$season))
+
+null_model <- max(frequencies)/length(data_train$season)
+
+null_model
 ```
 
 You should find that the null model has an accuracy of around 0.46. 
@@ -197,7 +486,7 @@ Npred <- ncol(data_train)-1 # number of predictors
 resultmat <- data.frame(Variable = names(data_train)[-1], Accuracy = rep(0,Npred)) #store performance for each variable
 for (n in 2:ncol(data_train)) #loop over each predictor. For this to work, outcome must be in 1st column
 {
-  fit1 <- train( as.formula(paste(outcomename, "~",names(data_train)[n])) , data = data_train, method = "rpart", trControl = fitControl, na.action = na.pass, tuneLength = 10) 
+  fit1 <- caret :: train( as.formula(paste(outcomename, "~", names(data_train)[n])) , data = data_train, method = "rpart", trControl = fitControl, na.action = na.pass, tuneLength = 10) 
 resultmat[n-1,2]= max(fit1$results$Accuracy)  
 }
 print(resultmat)
@@ -214,7 +503,7 @@ Anyway, now let's fit a tree to the full model with all predictors.
 ```{r fullfit}
 set.seed(1111) #makes each code block reproducible
 fitControl <- trainControl(method="repeatedcv",number=5,repeats=5) 
-fit1 = train(season  ~ ., data=data_train, method="rpart",  trControl = fitControl, na.action = na.pass, tuneLength = 10) 
+fit1 = caret :: train(season  ~ ., data=data_train, method="rpart",  trControl = fitControl, na.action = na.pass, tuneLength = 10) 
 print(fit1$results)
 ```
 
@@ -246,8 +535,37 @@ Also, further below, I had problems fitting some of the models, the NA caused pr
 
 ```{r reduce-data}
 #write code that removes StartMonth and EndMonth from both training and test sets
+reducedata_train <- data_train %>% 
+
+  select(-c(StartMonth, EndMonth))
+
+reducedata_test <- data_test %>% 
+
+  select(-c(StartMonth, EndMonth))
+
 # then drop all observations with missing values in both trian and test sets
+
+reducedata_train <- reducedata_train %>%
+
+  na.omit(data_train)
+
+
+
+reducedata_test <- reducedata_test %>%
+
+  na.omit(data_test)
+
 # copy and paste the code from above that computes performance of a null model
+
+measureACC("", reducedata_train$season)
+
+
+
+redfrequencies <- as.matrix(summary(reducedata_train$season))
+
+rednull_model <- max(redfrequencies)/length(reducedata_train$season)
+
+rednull_model
 ```
 
 You should find a very similar null-model accuracy, around 0.46.
@@ -255,8 +573,16 @@ You should find a very similar null-model accuracy, around 0.46.
 Now, let's re-do the fit above fitting a single tree. I'll increase the tuneLength value a bit so the algorithm can try a few more parameter values.
 
 ```{r fullfit-2}
-#copy and paste the code from above that fits the single tree. set tuneLength to 20. 
+#copy and paste the code from above that fits the single tree. set tuneLength to 20.
+set.seed(1111) #makes each code block reproducible
+fitControl <- trainControl(method="repeatedcv",number=5,repeats=5) 
+fit1 = caret :: train(season  ~ ., data=reducedata_train, method="rpart",  trControl = fitControl, na.action = na.pass, tuneLength = 20) 
+print(fit1$results)
 # look at model performance for different cp values. Also plot the tree.
+
+prp(fit1$finalModel, extra = 1, type = 1)
+ww=17.8/2.54; wh=ww; #for saving plot
+dev.print(device=png,width=ww,height=wh,units="in",res=600,file="reducerparttree.png")
 ```
 
 With those variables removed, the tree model doesn't perform very well. Accuracy is similar to the null model. You can see that in the tree figure, the final nodes (leaves) show a lot of mis-predictions. Note again that only a few variables are used to build the tree, and OBYear shows up more than once. 
@@ -273,7 +599,7 @@ Note that running the code below (and several models that follow) might take a f
 ```{r randomforest, echo=TRUE}
 set.seed(1111) #makes each code block reproducible
 tuning_grid <- expand.grid( .mtry = seq(1,7,by=1), .splitrule = "gini", .min.node.size = seq(2,8,by=1) )
-fit2 = train(season ~ ., data=data_train, method="ranger",  trControl = fitControl, tuneGrid = tuning_grid, na.action = na.pass) 
+fit2 = caret :: train(season ~ ., data=reducedata_train, method="ranger",  trControl = fitControl, tuneGrid = tuning_grid, na.action = na.pass) 
 ```
 
 We can't plot a nice final tree anymore since the model is now a combination of trees. We can look at a plot of model performance as a function of the model tuning parameters. 
@@ -291,8 +617,9 @@ This plot suggests that for around 4 randomly selected parameters and a minimum 
 Let's now try a boosted regression tree ensemble. This method also has several parameters that need tuning, which are specified in `gbmGrid`. 
 
 ```{r gbm, echo=TRUE}
+library(gbm)
 gbmGrid <- expand.grid(interaction.depth = seq(1, 7, by = 2), n.trees = 300, shrinkage = c(0.1, 0.01), n.minobsinnode = c(2,4,6))
-fit3 = train(season ~ ., data=data_train, method="gbm", trControl = fitControl, verbose=FALSE, tuneGrid = gbmGrid) 
+fit3 = caret :: train(season ~ ., data=reducedata_train, method="gbm", trControl = fitControl, verbose=FALSE, tuneGrid = gbmGrid) 
 ```
 
 We can again look at diagnostic fits and variable importance plots for this model, as well as check performance.
@@ -312,6 +639,15 @@ Here, we'll fit another random forest model but now use centering and scaling fo
 ```{r randomforest-2, echo=TRUE}
 # copy the random forest code from above. Add a statement to the train() function that centers and scales predictors.
 # save the result as fit4. plot model results.
+set.seed(1111) #makes each code block reproducible
+
+tuning_grid <- expand.grid( .mtry = seq(1,7,by=1), .splitrule = "gini", .min.node.size = seq(2,8,by=1) )
+
+fit4 = caret::train(season ~ ., data=reducedata_train, method="ranger",  trControl = fitControl, 
+
+                    preProc = c("center","scale"), tuneGrid = tuning_grid, na.action = na.pass) 
+
+plot(fit4)
 ```
 
 It doesn't look like it helped a lot.
@@ -324,6 +660,15 @@ Ok, let's try one more. Since the trees don't seem to work too well, and a logis
 
 ```{r da, echo=TRUE}
 #write code that trains a pda model, use tuneLength 20. Save as fit5 and plot.
+set.seed(1111) #makes each code block reproducible
+
+fitControl <- trainControl(method="repeatedcv",number=5,repeats=5) 
+
+fit5 <- caret::train(season  ~ ., data=reducedata_train, method="pda",  trControl = fitControl, na.action = na.pass, tuneLength = 20)
+
+
+
+plot(fit5)
 ```
 
 Ok, that doesn't look very good either. Alright, enough models, there just doesn't seem to be much information in the data that could help predict season. So let's start to wrap up.
@@ -353,7 +698,11 @@ For categorical outcomes, we can't plot residuals. But we can look at the final 
 
 ```{r}
 #Write code to get model predictions for the outcome on the training data.
+Tprediction <- predict(fit2, reducedata_train)
+confusionMatrix(Tprediction, reducedata_train$season)$table
 #use predicted and actual outcomes, make a table and compute accuracy.
+mlr::measureACC(reducedata_train$season, Tprediction)
+
 ```
 
 You should see that the model gets a lot right (high numbers on the diagonal), but predicts winter more often than it should (last row). Accuracy in the training data is pretty good.
@@ -362,6 +711,10 @@ But we know that performance on the training set is not that meaningful, especia
 
 ```{r predict}
 #copy and paste the code from above, but now do it for the test set.
+Testprediction <- predict(fit2, reducedata_test)
+confusionMatrix(Testprediction, reducedata_test$season)$table
+#use predicted and actual outcomes, make a table and compute accuracy.
+mlr::measureACC(reducedata_test$season, Testprediction)
 ```
 
 Here, the confusion matrix doesn't look good at all. Off-diagonal entries are larger than diagonal, accuracy is about as good as a null model, and agrees with the cross-validated results. That last point is good, that means our cross-validation routine properly estimates the performance of "new" data. Of course, even this estimate on test data is a bit optimistic, since real new data is usually collected under slightly different circumstances and with different protocols, making it more likely that model performance is reduced.

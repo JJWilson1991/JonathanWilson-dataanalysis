@@ -9,6 +9,8 @@ left:
         href: ./Variable_Selection.html
       - text: "Tree Fitting"
         href: ./Tree_Fitting.html
+      - text: "Deep Learning"
+        href: ./Keras_basic_classification.html
   - text: "About the Author"
     href: ./Author.html
 right:

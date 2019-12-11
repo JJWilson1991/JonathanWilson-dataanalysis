@@ -12,7 +12,7 @@
 
 
 
-<title>Variable_Selection.utf8.md</title>
+<title>Variable_Selection.knit.utf8.md</title>
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -23,8 +23,6 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
 
 <style type="text/css">code{white-space: pre;}</style>
 <style type="text/css">
@@ -336,6 +334,12 @@ library(&#39;parallelMap&#39;) #for using multiple processors when running model
 library(gridExtra)
 library(visdat)
 library(pROC)</code></pre>
+<pre><code>## Type &#39;citation(&quot;pROC&quot;)&#39; for a citation.</code></pre>
+<pre><code>## 
+## Attaching package: &#39;pROC&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     cov, smooth, var</code></pre>
 </div>
 <div id="data-loading-and-cleaning" class="section level1">
 <h1>Data loading and cleaning</h1>
@@ -587,12 +591,12 @@ dim(norodata_rawv)</code></pre>
 <p>Let’s first check for missing values.</p>
 <pre class="r"><code># write code that looks at missing values
 vis_miss(norodata_rawv)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/check-reduced-data-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/check-reduced-data-1.pdf" /><!-- --></p>
 <p>Looks like we have again some missing in <code>Hospitalization</code> and <code>Deaths</code>, and some more in <code>RiskAll</code>. Since the missing is not excessive, and to make our life easier, we’ll drop them for now. Note however the ‘blocks’ of missing values for RiskAll. Given that these outbreaks should be entered fairly randomly into the spreadsheet, it is strange to see the NA show up in such blocks. For a real data analysis, it would be worth looking closer and checking why there is a clustering like that.</p>
 <pre class="r"><code># write code to remove any observations with NA
 removena_noro &lt;- na.omit(norodata_rawv)
 vis_miss(removena_noro)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/further-reduce-data-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/further-reduce-data-1.pdf" /><!-- --></p>
 <p>Let’s make sure everything has the right format (numeric/integer/factor). Adjust/recode variables as needed. You will likely find that as you convert <code>OBYear</code> to numeric, something doesn’t quite work. Take a look. Fix by removing the observation with the troublesome entry, then convert to numeric. Finally, remove the observations that have 0 as OByear - there are more than 1 now.</p>
 <pre class="r"><code>#write code that cleans OBYear, convert it to numeric. Remove observations with OBYear = 0. 
 unique(removena_noro$OBYear)</code></pre>
@@ -898,7 +902,7 @@ gg2c4_vs_vomit &lt;- CompData %&gt;%
 
 
 grid.arrange(gg2c4_vs_casesall, gg2c4_vs_deaths, gg2c4_vs_hosp, gg2c4_vs_meand1, gg2c4_vs_meani1, gg2c4_vs_mediand1, gg2c4_vs_mediani1, gg2c4_vs_obyear, gg2c4_vs_riskall, gg2c4_vs_vomit, nrow = 2)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/plots-1-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/plots-1-1.pdf" /><!-- --></p>
 <p>Things look ok, apart from the skew in the predictors we discussed previously.</p>
 <p>Next, let’s create plots for the categorical variabless. You can use for instance <code>geom_count</code> for it, or some other representation. If you prefer lots of tables, that’s ok too.</p>
 <pre class="r"><code>#write code that produces plots or tables showing our outcome of interest and each categorical predictor.
@@ -935,7 +939,7 @@ gg2c4_vs_path1 &lt;- CompData %&gt;%
   geom_count() 
 
 grid.arrange(gg2c4_vs_action1, gg2c4_vs_country, gg2c4_vs_hemi, gg2c4_vs_path1, nrow = 2)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/plots-2-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/plots-2-1.pdf" /><!-- --></p>
 <pre class="r"><code>gg2c4_vs_season &lt;- CompData %&gt;% 
 
   ggplot(aes(x = gg2c4, y = season)) + 
@@ -961,7 +965,7 @@ gg2c4_vs_Setting &lt;- CompData %&gt;%
 
 
 grid.arrange(gg2c4_vs_season, gg2c4_vs_tras1, gg2c4_vs_Setting, nrow = 2)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/unnamed-chunk-1-1.pdf" /><!-- --></p>
 <p>You should see from plots or tables that some of the categories are small, e.g. for Action1, the “No” category is very small. Very few entries for a given factor create problems during cross-validation (since we can’t have a level show up in the holdout if it wasn’t part of the fitting set). So let’s look at those factor variables a bit closer and fix as needed.</p>
 <pre class="r"><code>#write code that looks at tables/summaries of factors 
 
@@ -1149,7 +1153,7 @@ summary(Outcomefirst)</code></pre>
 ##  Max.   :1.0000                   
 ## </code></pre>
 <pre class="r"><code>vis_dat(Outcomefirst)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/more-factor-cleaning-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/more-factor-cleaning-1.pdf" /><!-- --></p>
 <p>At this step, you should have a dataframe containing 850 observations, and 18 variables: 1 outcome, 9 numeric/integer predictors, and 8 factor variables. There should be no missing values. The outcome, <code>gg2c4</code>, should be in the 1st slot.</p>
 </div>
 <div id="data-splitting" class="section level1">
@@ -1350,7 +1354,7 @@ resmat[5,2] = sfeatga_res$y
 resmat[5,3] = paste(as.vector(sfeatga_res$x), collapse= &#39;, &#39;)
 runtime.minutes_SS=(proc.time()-tstart)[[3]]/60; #total time in minutes the optimization took
 print(sprintf(&#39;subset selection took %f minutes&#39;,runtime.minutes_SS));</code></pre>
-<pre><code>## [1] &quot;subset selection took 1.925167 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 2.669667 minutes&quot;</code></pre>
 <pre class="r"><code>kable(resmat)</code></pre>
 <table>
 <thead>
@@ -1566,7 +1570,7 @@ resmat[5,2] = sfeatga_res$y
 resmat[5,3] = paste(as.vector(sfeatga_res$x), collapse= &#39;, &#39;)
 runtime.minutes_SS=(proc.time()-tstart)[[3]]/60; #total time in minutes the optimization took
 print(sprintf(&#39;subset selection took %f minutes&#39;,runtime.minutes_SS));</code></pre>
-<pre><code>## [1] &quot;subset selection took 2.202167 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 19.738333 minutes&quot;</code></pre>
 <pre class="r"><code>kable(resmat)</code></pre>
 <table>
 <thead>
@@ -1618,7 +1622,7 @@ mytask = makeClassifTask(id=&#39;rocanalysis&#39;, data = d2, target = outcomena
 log_pred = predict(log_mod, task = mytask)
 df = generateThreshVsPerfData(list(logistic = log_pred), measures = list(fpr, tpr))
 plotROCCurves(df)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/roc-plot-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/roc-plot-1.pdf" /><!-- --></p>
 <p>Based on this plot, a FP of around 0.5 an TP of around 0.75 seem to produce a good model. Digging into the <code>df</code> object, you can find the raw data underlying the curve in <code>df$data</code> and will find</p>
 <pre class="r"><code>print(df$data[29:31,])</code></pre>
 <pre><code>##          fpr       tpr threshold
@@ -1782,7 +1786,7 @@ resmat[5,2] = sfeatga_res$y
 resmat[5,3] = paste(as.vector(sfeatga_res$x), collapse= &#39;, &#39;)
 runtime.minutes_SS=(proc.time()-tstart)[[3]]/60; #total time in minutes the optimization took
 print(sprintf(&#39;subset selection took %f minutes&#39;,runtime.minutes_SS));</code></pre>
-<pre><code>## [1] &quot;subset selection took 2.024500 minutes&quot;</code></pre>
+<pre><code>## [1] &quot;subset selection took 3.143333 minutes&quot;</code></pre>
 <pre class="r"><code>kable(resmat)</code></pre>
 <table>
 <thead>
@@ -1833,7 +1837,7 @@ mytask = makeClassifTask(id=&#39;rocanalysis&#39;, data = d2, target = outcomena
 lda_pred = predict(lda_mod, task = mytask)
 df = generateThreshVsPerfData(list(LDA = lda_pred, logistic = log_pred), measures = list(fpr, tpr))
 plotROCCurves(df)</code></pre>
-<p><img src="Variable_Selection_files/figure-html/roc-plot-2-1.png" width="672" /></p>
+<p><embed src="Variable_Selection_files/figure-latex/roc-plot-2-1.pdf" /><!-- --></p>
 <p>You should see from the plot that the LDA model performs very similar to the Logistic model.</p>
 <pre class="r"><code>#close down the parallelization started at the beginning to free up resources.
 parallelStop()</code></pre>

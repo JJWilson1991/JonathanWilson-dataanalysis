@@ -447,7 +447,7 @@ div.tocify {
   </ul>
 </li>
 <li>
-  <a href="./Author.html">About the Author</a>
+  <a href="https://epid8060fall2019.github.io/JonathanWilson-introduction/">About the Author</a>
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -568,17 +568,17 @@ div.tocify {
 <a class="sourceLine" id="cb21-3" title="3">score &lt;-<span class="st"> </span>model <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">evaluate</span>(test_images, test_labels)</a>
 <a class="sourceLine" id="cb21-4" title="4"></a>
 <a class="sourceLine" id="cb21-5" title="5"><span class="kw">cat</span>(<span class="st">&#39;Test loss:&#39;</span>, score<span class="op">$</span>loss, <span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</a></code></pre></div>
-<pre><code>## Test loss: 0.3399111</code></pre>
+<pre><code>## Test loss: 0.3754434</code></pre>
 <div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb23-1" title="1"><span class="kw">cat</span>(<span class="st">&#39;Test accuracy:&#39;</span>, score<span class="op">$</span>acc, <span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>)</a></code></pre></div>
-<pre><code>## Test accuracy: 0.8755</code></pre>
+<pre><code>## Test accuracy: 0.8665</code></pre>
 <div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb25-1" title="1"><span class="co">#the accuracy is slightly worse than the training data, due to over fitting</span></a></code></pre></div>
 <div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb26-1" title="1"><span class="co">#The miodel can now be used to make predicitons baout images</span></a>
 <a class="sourceLine" id="cb26-2" title="2">predictions &lt;-<span class="st"> </span>model <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">predict</span>(test_images)</a>
 <a class="sourceLine" id="cb26-3" title="3"></a>
 <a class="sourceLine" id="cb26-4" title="4"><span class="co">#the probability is returned with 10 liklihoods</span></a>
 <a class="sourceLine" id="cb26-5" title="5">predictions[<span class="dv">1</span>, ]</a></code></pre></div>
-<pre><code>##  [1] 3.308792e-06 2.706175e-08 8.642041e-07 1.312926e-08 2.522204e-06
-##  [6] 4.541546e-03 2.724779e-06 3.319620e-02 1.094462e-04 9.621433e-01</code></pre>
+<pre><code>##  [1] 1.931461e-05 7.999764e-08 1.313192e-07 7.733890e-08 3.719381e-06
+##  [6] 4.519831e-02 8.353650e-06 9.190571e-02 3.250434e-05 8.628318e-01</code></pre>
 <div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb28-1" title="1"><span class="kw">which.max</span>(predictions[<span class="dv">1</span>, ])</a></code></pre></div>
 <pre><code>## [1] 10</code></pre>
 <div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb30-1" title="1">class_pred &lt;-<span class="st"> </span>model <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">predict_classes</span>(test_images)</a>
@@ -615,10 +615,10 @@ div.tocify {
 <pre><code>## [1]  1 28 28</code></pre>
 <div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb38-1" title="1">predictions &lt;-<span class="st"> </span>model <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">predict</span>(img)</a>
 <a class="sourceLine" id="cb38-2" title="2">predictions</a></code></pre></div>
-<pre><code>##              [,1]        [,2]         [,3]         [,4]         [,5]
-## [1,] 3.308786e-06 2.70617e-08 8.642026e-07 1.312923e-08 2.522204e-06
-##             [,6]         [,7]       [,8]        [,9]     [,10]
-## [1,] 0.004541542 2.724774e-06 0.03319619 0.000109446 0.9621434</code></pre>
+<pre><code>##              [,1]         [,2]         [,3]         [,4]         [,5]
+## [1,] 1.931464e-05 7.999761e-08 1.313197e-07 7.733902e-08 3.719387e-06
+##           [,6]         [,7]       [,8]         [,9]     [,10]
+## [1,] 0.0451984 8.353654e-06 0.09190585 3.250433e-05 0.8628315</code></pre>
 <div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb40-1" title="1"><span class="co"># subtract 1 as labels are 0-based</span></a>
 <a class="sourceLine" id="cb40-2" title="2">prediction &lt;-<span class="st"> </span>predictions[<span class="dv">1</span>, ] <span class="op">-</span><span class="st"> </span><span class="dv">1</span></a>
 <a class="sourceLine" id="cb40-3" title="3"><span class="kw">which.max</span>(prediction)</a></code></pre></div>
